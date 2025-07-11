@@ -1,8 +1,7 @@
-name: Codeflash
+name: Codeflash Optimization
 on:
   pull_request:
     paths:
-      # So that this workflow only runs when code within the target module is modified
       - 'pydantic_ai_slim/pydantic_ai/**'
   workflow_dispatch:
 concurrency:
@@ -28,5 +27,5 @@ jobs:
           enable-cache: true
       - name: 📦 Install Dependencies
         run: uv sync --package pydantic-ai-slim
-      - name: ⚡️Codeflash Optimization
+      - name: ⚡️ Codeflash Optimization
         run: uv run codeflash
