@@ -354,16 +354,18 @@ class InstrumentedModel(WrapperModel):
             GEN_AI_SYSTEM_ATTRIBUTE: model.system,
             GEN_AI_REQUEST_MODEL_ATTRIBUTE: model.model_name,
         }
-        if base_url := model.base_url:
+        base_url = model.base_url
+        if base_url:
             try:
                 parsed = urlparse(base_url)
+                hostname = parsed.hostname
+                if hostname:  # pragma: no branch
+                    attributes['server.address'] = hostname
+                port = parsed.port
+                if port:  # pragma: no branch
+                    attributes['server.port'] = port
             except Exception:  # pragma: no cover
                 pass
-            else:
-                if parsed.hostname:  # pragma: no branch
-                    attributes['server.address'] = parsed.hostname
-                if parsed.port:  # pragma: no branch
-                    attributes['server.port'] = parsed.port
 
         return attributes
 
