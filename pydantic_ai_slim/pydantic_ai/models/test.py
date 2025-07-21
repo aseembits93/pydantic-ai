@@ -449,6 +449,36 @@ class _JsonSchemaTestData:
         s += _chars[self.seed % chars]
         return s
 
+    def _char(self) -> str:
+        return 'x'
+
+    def _object_gen(self, schema: dict[str, Any]) -> dict[str, Any]:
+        props = schema.get('properties', {})
+        required = schema.get('required', props.keys())
+        res = {}
+        for k in required:
+            if k in props:
+                res[k] = self._gen_any(props[k])
+        return res
+
+    def _str_gen(self, schema: dict[str, Any]) -> str:
+        min_length = schema.get('minLength', 1)
+        length = max(min_length, 1)
+        return 'x' * length
+
+    def _int_gen(self, schema: dict[str, Any]) -> int:
+        minimum = schema.get('minimum', 0)
+        return minimum
+
+    def _bool_gen(self) -> bool:
+        return bool(self.seed % 2)
+
+    def _array_gen(self, schema: dict[str, Any]) -> list[Any]:
+        items = schema.get('items', {})
+        min_items = schema.get('minItems', 1)
+        size = max(min_items, 1)
+        return [self._gen_any(items)] * size
+
 
 def _get_string_usage(text: str) -> Usage:
     response_tokens = _estimate_string_tokens(text)
