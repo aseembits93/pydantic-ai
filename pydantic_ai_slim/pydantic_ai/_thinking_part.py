@@ -17,20 +17,26 @@ def split_content_into_text_and_thinking(content: str) -> list[ThinkingPart | Te
     """
     parts: list[ThinkingPart | TextPart] = []
 
-    start_index = content.find(START_THINK_TAG)
-    while start_index >= 0:
-        before_think, content = content[:start_index], content[start_index + len(START_THINK_TAG) :]
-        if before_think:
-            parts.append(TextPart(content=before_think))
-        end_index = content.find(END_THINK_TAG)
-        if end_index >= 0:
-            think_content, content = content[:end_index], content[end_index + len(END_THINK_TAG) :]
-            parts.append(ThinkingPart(content=think_content))
-        else:
+    start_pos = 0
+    content_len = len(content)
+    start_tag_len = len(START_THINK_TAG)
+    end_tag_len = len(END_THINK_TAG)
+
+    while start_pos < content_len:
+        start_index = content.find(START_THINK_TAG, start_pos)
+        if start_index == -1:
+            if start_pos < content_len:
+                parts.append(TextPart(content=content[start_pos:]))
+            break
+        if start_index > start_pos:
+            parts.append(TextPart(content=content[start_pos:start_index]))
+        think_start = start_index + start_tag_len
+        end_index = content.find(END_THINK_TAG, think_start)
+        if end_index == -1:
             # We lose the `<think>` tag, but it shouldn't matter.
-            parts.append(TextPart(content=content))
-            content = ''
-        start_index = content.find(START_THINK_TAG)
-    if content:
-        parts.append(TextPart(content=content))
+            parts.append(TextPart(content=content[think_start:]))
+            break
+        parts.append(ThinkingPart(content=content[think_start:end_index]))
+        start_pos = end_index + end_tag_len
+
     return parts
