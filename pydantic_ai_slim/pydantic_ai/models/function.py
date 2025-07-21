@@ -16,9 +16,7 @@ from pydantic_ai.profiles import ModelProfileSpec
 from .. import _utils, usage
 from .._utils import PeekableAsyncStream
 from ..messages import (
-    AudioUrl,
     BinaryContent,
-    ImageUrl,
     ModelMessage,
     ModelRequest,
     ModelResponse,
@@ -320,17 +318,17 @@ def _estimate_string_tokens(content: str | Sequence[UserContent]) -> int:
     if not content:
         return 0
     if isinstance(content, str):
-        return len(re.split(r'[\s",.:]+', content.strip()))
+        return len(_token_splitter(content.strip()))
     else:
         tokens = 0
+        splitter = _token_splitter  # local fast-path
         for part in content:
             if isinstance(part, str):
-                tokens += len(re.split(r'[\s",.:]+', part.strip()))
-            # TODO(Marcelo): We need to study how we can estimate the tokens for these types of content.
-            if isinstance(part, (AudioUrl, ImageUrl)):
-                tokens += 0
+                tokens += len(splitter(part.strip()))
             elif isinstance(part, BinaryContent):
                 tokens += len(part.data)
-            else:
-                tokens += 0
+            # TODO(Marcelo): We need to study how we can estimate the tokens for these types of content.
+            # No tokens are added for AudioUrl, ImageUrl, or other types.
         return tokens
+
+_token_splitter = re.compile(r'[\s",.:]+').split
