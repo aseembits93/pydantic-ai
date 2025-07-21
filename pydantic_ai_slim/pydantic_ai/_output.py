@@ -511,7 +511,7 @@ class ToolOutputSchema(OutputSchema[OutputDataT]):
 
     def tool_names(self) -> list[str]:
         """Return the names of the tools."""
-        return list(self.tools.keys())
+        return list(self._tools)
 
     def tool_defs(self) -> list[ToolDefinition]:
         """Get tool definitions to register with the model."""
