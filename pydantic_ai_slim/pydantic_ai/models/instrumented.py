@@ -57,13 +57,13 @@ TOKEN_HISTOGRAM_BOUNDARIES = (1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 26214
 
 def instrument_model(model: Model, instrument: InstrumentationSettings | bool) -> Model:
     """Instrument a model with OpenTelemetry/logfire."""
-    if instrument and not isinstance(model, InstrumentedModel):
-        if instrument is True:
-            instrument = InstrumentationSettings()
+    if not instrument or isinstance(model, InstrumentedModel):
+        return model
 
-        model = InstrumentedModel(model, instrument)
+    if instrument is True:
+        instrument = InstrumentationSettings()
 
-    return model
+    return InstrumentedModel(model, instrument)
 
 
 @dataclass(init=False)
