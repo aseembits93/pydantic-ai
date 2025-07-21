@@ -415,26 +415,46 @@ class _JsonSchemaTestData:
         """Generate an array from a JSON Schema array."""
         data: list[Any] = []
         unique_items = schema.get('uniqueItems')
-        if prefix_items := schema.get('prefixItems'):
-            for item in prefix_items:
-                data.append(self._gen_any(item))
-                if unique_items:
-                    self.seed += 1
+
+        # Use local variable for seed for speed inside loop
+        local_seed = self.seed
+
+        prefix_items = schema.get('prefixItems')
+        if prefix_items:
+            length = len(prefix_items)
+            if unique_items:
+                # For unique, use advancing seed in local variable, not self.seed
+                for i, item in enumerate(prefix_items):
+                    prev_seed = local_seed
+                    val = self._with_seed(local_seed, self._gen_any, item)
+                    data.append(val)
+                    local_seed += 1
+            else:
+                for item in prefix_items:
+                    data.append(self._gen_any(item))
 
         items_schema = schema.get('items', {})
         min_items = schema.get('minItems', 0)
-        if min_items > len(data):
-            for _ in range(min_items - len(data)):
-                data.append(self._gen_any(items_schema))
-                if unique_items:
-                    self.seed += 1
+        extra = min_items - len(data)
+        if extra > 0:
+            # Preallocate if possible
+            if unique_items:
+                for i in range(extra):
+                    val = self._with_seed(local_seed, self._gen_any, items_schema)
+                    data.append(val)
+                    local_seed += 1
+            else:
+                # Fast path: all generated from same seed, no need to advance
+                val = self._gen_any(items_schema)
+                data.extend([val] * extra if extra > 0 else [])
         elif items_schema:
-            # if there is an `items` schema, add an item unless it would break `maxItems` rule
             max_items = schema.get('maxItems')
             if max_items is None or max_items > len(data):
-                data.append(self._gen_any(items_schema))
                 if unique_items:
-                    self.seed += 1
+                    val = self._with_seed(local_seed, self._gen_any, items_schema)
+                    data.append(val)
+                else:
+                    data.append(self._gen_any(items_schema))
 
         return data
 
@@ -448,6 +468,15 @@ class _JsonSchemaTestData:
             rem //= chars
         s += _chars[self.seed % chars]
         return s
+
+    def _with_seed(self, seed: int, func, *args, **kwargs):
+        # Helper: calls func with self.seed temporarily set to seed
+        old_seed = self.seed
+        self.seed = seed
+        try:
+            return func(*args, **kwargs)
+        finally:
+            self.seed = old_seed
 
 
 def _get_string_usage(text: str) -> Usage:
