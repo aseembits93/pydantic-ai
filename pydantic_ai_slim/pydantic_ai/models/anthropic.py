@@ -34,6 +34,7 @@ from ..providers import Provider, infer_provider
 from ..settings import ModelSettings
 from ..tools import ToolDefinition
 from . import Model, ModelRequestParameters, StreamedResponse, check_allow_model_requests, download_item, get_user_agent
+from anthropic.types.beta import BetaMessage, BetaRawMessageDeltaEvent, BetaRawMessageStartEvent, BetaRawMessageStreamEvent
 
 try:
     from anthropic import NOT_GIVEN, APIStatusError, AsyncAnthropic, AsyncStream
@@ -425,11 +426,11 @@ class AnthropicModel(Model):
 
 
 def _map_usage(message: BetaMessage | BetaRawMessageStreamEvent) -> usage.Usage:
-    if isinstance(message, BetaMessage):
+    if type(message) is BetaMessage:
         response_usage = message.usage
-    elif isinstance(message, BetaRawMessageStartEvent):
+    elif type(message) is BetaRawMessageStartEvent:
         response_usage = message.message.usage
-    elif isinstance(message, BetaRawMessageDeltaEvent):
+    elif type(message) is BetaRawMessageDeltaEvent:
         response_usage = message.usage
     else:
         # No usage information provided in:
@@ -441,8 +442,9 @@ def _map_usage(message: BetaMessage | BetaRawMessageStreamEvent) -> usage.Usage:
 
     # Store all integer-typed usage values in the details, except 'output_tokens' which is represented exactly by
     # `response_tokens`
+    usage_dict = response_usage.model_dump()
     details: dict[str, int] = {
-        key: value for key, value in response_usage.model_dump().items() if isinstance(value, int)
+        key: value for key, value in usage_dict.items() if isinstance(value, int)
     }
 
     # Usage coming from the RawMessageDeltaEvent doesn't have input token data, hence using `get`
