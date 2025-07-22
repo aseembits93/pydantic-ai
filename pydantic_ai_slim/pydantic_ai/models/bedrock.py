@@ -40,6 +40,9 @@ from pydantic_ai.providers import Provider, infer_provider
 from pydantic_ai.providers.bedrock import BedrockModelProfile
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tools import ToolDefinition
+from botocore.client import BaseClient
+from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
+from mypy_boto3_bedrock_runtime.type_defs import InferenceConfigurationTypeDef
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -222,7 +225,13 @@ class BedrockConverseModel(Model):
             provider = infer_provider(provider)
         self.client = cast('BedrockRuntimeClient', provider.client)
 
-        super().__init__(settings=settings, profile=profile or provider.model_profile)
+        model_profile = profile
+        if model_profile is None:
+            # provider.model_profile is a method; call it with model_name
+            mp = getattr(provider, "model_profile", None)
+            if callable(mp):
+                model_profile = mp(model_name)
+        super().__init__(settings=settings, profile=model_profile)
 
     def _get_tools(self, model_request_parameters: ModelRequestParameters) -> list[ToolTypeDef]:
         tools = [self._map_tool_definition(r) for r in model_request_parameters.function_tools]
@@ -367,19 +376,23 @@ class BedrockConverseModel(Model):
     def _map_inference_config(
         model_settings: ModelSettings | None,
     ) -> InferenceConfigurationTypeDef:
-        model_settings = model_settings or {}
-        inference_config: InferenceConfigurationTypeDef = {}
-
-        if max_tokens := model_settings.get('max_tokens'):
-            inference_config['maxTokens'] = max_tokens
-        if (temperature := model_settings.get('temperature')) is not None:
-            inference_config['temperature'] = temperature
-        if top_p := model_settings.get('top_p'):
-            inference_config['topP'] = top_p
-        if stop_sequences := model_settings.get('stop_sequences'):
-            inference_config['stopSequences'] = stop_sequences
-
-        return inference_config
+        """Map ModelSettings to Bedrock InferenceConfigurationTypeDef."""
+        ms = model_settings or {}
+        # Only include keys that have valid values, minimizing work/allocations
+        config = {}
+        max_tokens = ms.get("max_tokens")
+        if max_tokens:
+            config["maxTokens"] = max_tokens
+        temperature = ms.get("temperature")
+        if temperature is not None:
+            config["temperature"] = temperature
+        top_p = ms.get("top_p")
+        if top_p:
+            config["topP"] = top_p
+        stop_sequences = ms.get("stop_sequences")
+        if stop_sequences:
+            config["stopSequences"] = stop_sequences
+        return config
 
     def _map_tool_config(self, model_request_parameters: ModelRequestParameters) -> ToolConfigurationTypeDef | None:
         tools = self._get_tools(model_request_parameters)
