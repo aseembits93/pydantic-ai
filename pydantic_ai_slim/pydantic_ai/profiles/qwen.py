@@ -6,4 +6,6 @@ from ._json_schema import InlineDefsJsonSchemaTransformer
 
 def qwen_model_profile(model_name: str) -> ModelProfile | None:
     """Get the model profile for a Qwen model."""
-    return ModelProfile(json_schema_transformer=InlineDefsJsonSchemaTransformer)
+    return _QWEN_MODEL_PROFILE
+
+_QWEN_MODEL_PROFILE = ModelProfile(json_schema_transformer=InlineDefsJsonSchemaTransformer)
