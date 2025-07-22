@@ -21,6 +21,7 @@ from pydantic_graph._utils import get_event_loop as _get_event_loop
 
 from . import agent, messages, models, settings
 from .models import StreamedResponse, instrumented as instrumented_models
+from functools import lru_cache
 
 __all__ = (
     'model_request',
@@ -188,11 +189,24 @@ def model_request_stream(
     Returns:
         A [stream response][pydantic_ai.models.StreamedResponse] async context manager.
     """
-    model_instance = _prepare_model(model, instrument)
+    # Using memoized _prepare_model if possible
+    # We use original _prepare_model only if not cacheable
+    try:
+        model_instance = _cached_prepare_model(model, instrument)
+    except TypeError:
+        # fallback for non-hashable type (e.g. 'model' instance), use original function
+        model_instance = _prepare_model(model, instrument)
+
+    # Only instantiate ModelRequestParameters() if needed.
+    mrp = model_request_parameters if model_request_parameters is not None else models.ModelRequestParameters()
+    # Get customize_request_parameters only once
+    customize_fn = model_instance.customize_request_parameters
+    customized_params = customize_fn(mrp)
+
     return model_instance.request_stream(
         messages,
         model_settings,
-        model_instance.customize_request_parameters(model_request_parameters or models.ModelRequestParameters()),
+        customized_params,
     )
 
 
@@ -263,6 +277,11 @@ def _prepare_model(
         instrument = agent.Agent._instrument_default  # pyright: ignore[reportPrivateUsage]
 
     return instrumented_models.instrument_model(model_instance, instrument)
+
+# Simple cache for _prepare_model to avoid repeated expensive model preparation
+@lru_cache(maxsize=64)
+def _cached_prepare_model(model, instrument):
+    return _prepare_model(model, instrument)
 
 
 @dataclass
