@@ -21,6 +21,7 @@ from . import _output, _system_prompt, exceptions, messages as _messages, models
 from .output import OutputDataT, OutputSpec
 from .settings import ModelSettings, merge_model_settings
 from .tools import RunContext, Tool, ToolDefinition, ToolsPrepareFunc
+import functools
 
 if TYPE_CHECKING:
     from .mcp import MCPServer
@@ -617,7 +618,7 @@ def multi_modal_content_identifier(identifier: str | bytes) -> str:
     """Generate stable identifier for multi-modal content to help LLM in finding a specific file in tool call responses."""
     if isinstance(identifier, str):
         identifier = identifier.encode('utf-8')
-    return hashlib.sha1(identifier).hexdigest()[:6]
+    return _multi_modal_content_identifier_cached(identifier)
 
 
 async def process_function_tools(  # noqa C901
@@ -977,3 +978,9 @@ async def _process_message_history(
                 sync_processor = cast(_HistoryProcessorSync, processor)
                 messages = await run_in_executor(sync_processor, messages)
     return messages
+
+
+@functools.lru_cache(maxsize=4096)
+def _multi_modal_content_identifier_cached(identifier_bytes: bytes) -> str:
+    # Get the first 3 bytes (6 hex chars) directly
+    return hashlib.sha1(identifier_bytes).digest()[:3].hex()
