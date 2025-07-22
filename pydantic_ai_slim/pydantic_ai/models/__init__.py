@@ -760,7 +760,7 @@ def _customize_tool_def(transformer: type[JsonSchemaTransformer], t: ToolDefinit
     schema_transformer = transformer(t.parameters_json_schema, strict=t.strict)
     parameters_json_schema = schema_transformer.walk()
     if t.strict is None:
-        t = replace(t, strict=schema_transformer.is_strict_compatible)
+        return replace(t, parameters_json_schema=parameters_json_schema, strict=schema_transformer.is_strict_compatible)
     return replace(t, parameters_json_schema=parameters_json_schema)
 
 
