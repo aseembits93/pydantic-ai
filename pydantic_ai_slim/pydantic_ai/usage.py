@@ -1,6 +1,5 @@
 from __future__ import annotations as _annotations
 
-from copy import copy
 from dataclasses import dataclass
 
 from . import _utils
@@ -51,9 +50,24 @@ class Usage:
 
         This is provided so it's trivial to sum usage information from multiple requests and runs.
         """
-        new_usage = copy(self)
-        new_usage.incr(other)
-        return new_usage
+        new_details = None
+
+        if self.details and other.details:
+            new_details = self.details.copy()
+            for k, v in other.details.items():
+                new_details[k] = new_details.get(k, 0) + v
+        elif self.details:
+            new_details = self.details.copy()
+        elif other.details:
+            new_details = other.details.copy()
+
+        return Usage(
+            requests=(self.requests or 0) + (other.requests or 0),
+            request_tokens=(self.request_tokens or 0) + (other.request_tokens or 0) if (self.request_tokens is not None or other.request_tokens is not None) else None,
+            response_tokens=(self.response_tokens or 0) + (other.response_tokens or 0) if (self.response_tokens is not None or other.response_tokens is not None) else None,
+            total_tokens=(self.total_tokens or 0) + (other.total_tokens or 0) if (self.total_tokens is not None or other.total_tokens is not None) else None,
+            details=new_details
+        )
 
     def opentelemetry_attributes(self) -> dict[str, int]:
         """Get the token limits as OpenTelemetry attributes."""
