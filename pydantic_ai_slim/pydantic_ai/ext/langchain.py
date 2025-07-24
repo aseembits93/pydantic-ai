@@ -38,14 +38,20 @@ def tool_from_langchain(langchain_tool: LangChainTool) -> Tool:
     function_name = langchain_tool.name
     function_description = langchain_tool.description
     inputs = langchain_tool.args.copy()
-    required = sorted({name for name, detail in inputs.items() if 'default' not in detail})
+    required: list[str] = []
+    defaults: dict[str, Any] = {}
+    for name, detail in inputs.items():
+        if 'default' in detail:
+            defaults[name] = detail['default']
+        else:
+            required.append(name)
+    if required:
+        required.sort()
     schema: JsonSchemaValue = langchain_tool.get_input_jsonschema()
-    if 'additionalProperties' not in schema:
-        schema['additionalProperties'] = False
     if required:
         schema['required'] = required
-
-    defaults = {name: detail['default'] for name, detail in inputs.items() if 'default' in detail}
+    if 'additionalProperties' not in schema:
+        schema['additionalProperties'] = False
 
     # restructures the arguments to match langchain tool run
     def proxy(*args: Any, **kwargs: Any) -> str:
