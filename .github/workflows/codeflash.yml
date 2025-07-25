@@ -30,5 +30,9 @@ jobs:
           deno-version: v2.x
       - name: 📦 Install Dependencies
         run: uv sync --all-extras --all-packages --group lint --group docs
+      - name: uninstall codeflash
+        run: uv pip uninstall codeflash
+      - name: 📦 install codeflash from main
+        run: uv pip install git+https://github.com/codeflash-ai/codeflash.git
       - name: ⚡️Codeflash Optimization
         run: uv run codeflash --benchmark
