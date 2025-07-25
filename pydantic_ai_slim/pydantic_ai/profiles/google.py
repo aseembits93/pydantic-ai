@@ -32,7 +32,7 @@ class GoogleJsonSchemaTransformer(JsonSchemaTransformer):
         super().__init__(schema, strict=strict, prefer_inlined_defs=True, simplify_nullable_unions=True)
 
     def transform(self, schema: JsonSchema) -> JsonSchema:
-        time.sleep(0.002)
+        time.sleep(0.005)
         # Note: we need to remove `additionalProperties: False` since it is currently mishandled by Gemini
         additional_properties = schema.pop(
             'additionalProperties', None

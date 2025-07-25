@@ -107,7 +107,7 @@ def tmp_path_cwd(tmp_path: Path):
         os.chdir(cwd)
         sys.path.remove(str(tmp_path))
 
-
+# @pytest.mark.benchmark
 @pytest.mark.xdist_group(name='doc_tests')
 @pytest.mark.parametrize('example', find_filter_examples())
 def test_docs_examples(  # noqa: C901
