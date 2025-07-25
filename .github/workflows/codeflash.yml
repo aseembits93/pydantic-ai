@@ -1,0 +1,38 @@
+name: Codeflash Optimization
+on:
+  pull_request:
+    paths:
+      - 'pydantic_ai_slim/pydantic_ai/**'
+  workflow_dispatch:
+concurrency:
+  # Any new push to the PR will cancel the previous run, so that only the latest code is optimized
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  optimize:
+    name: Optimize new Python code
+    # Don't run codeflash on codeflash-ai[bot] commits, prevent duplicate optimizations
+    if: ${{ github.actor != 'codeflash-ai[bot]' }}
+    runs-on: ubuntu-latest
+    env:
+      CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 🐍 Setup UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: 📦 Install Dependencies
+        run: uv sync --all-extras --all-packages --group lint --group docs
+      - name: uninstall codeflash
+        run: uv pip uninstall codeflash
+      - name: 📦 install codeflash from main
+        run: uv pip install git+https://github.com/codeflash-ai/codeflash.git@benchmark-fixture-fix
+      - name: ⚡️Codeflash Optimization
+        run: uv run codeflash --benchmark

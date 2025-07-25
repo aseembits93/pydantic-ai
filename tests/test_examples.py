@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import ssl
 import sys
 from collections.abc import AsyncIterator, Iterable, Sequence
 from dataclasses import dataclass
@@ -117,6 +118,7 @@ def test_docs_examples(  # noqa: C901
     allow_model_requests: None,
     env: TestEnv,
     tmp_path_cwd: Path,
+    benchmark: Any,
 ):
     mocker.patch('pydantic_ai.agent.models.infer_model', side_effect=mock_infer_model)
     mocker.patch('pydantic_ai._utils.group_by_temporal', side_effect=mock_group_by_temporal)
@@ -128,6 +130,10 @@ def test_docs_examples(  # noqa: C901
     mocker.patch('httpx.AsyncClient.post', side_effect=async_http_request)
     mocker.patch('random.randint', return_value=4)
     mocker.patch('rich.prompt.Prompt.ask', side_effect=rich_prompt_ask)
+
+    # Avoid filesystem access when examples call ssl.create_default_context(cafile=...) with non-existent paths
+    mocker.patch('ssl.create_default_context', return_value=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+    mocker.patch('ssl.SSLContext.load_cert_chain', return_value=None)
 
     class CustomEvaluationReport(EvaluationReport):
         def print(self, *args: Any, **kwargs: Any) -> None:
@@ -156,6 +162,7 @@ def test_docs_examples(  # noqa: C901
     env.set('AWS_ACCESS_KEY_ID', 'testing')
     env.set('AWS_SECRET_ACCESS_KEY', 'testing')
     env.set('AWS_DEFAULT_REGION', 'us-east-1')
+    env.set('VERCEL_AI_GATEWAY_API_KEY', 'testing')
 
     prefix_settings = example.prefix_settings()
     opt_test = prefix_settings.get('test', '')
@@ -216,9 +223,19 @@ def test_docs_examples(  # noqa: C901
         test_globals: dict[str, str] = {'__name__': dunder_name}
 
         if eval_example.update_examples:  # pragma: lax no cover
-            eval_example.run_print_update(example, call=call_name, module_globals=test_globals)
+            benchmark(
+                eval_example.run_print_update,
+                example,
+                call=call_name,
+                module_globals=test_globals,
+            )
         else:
-            eval_example.run_print_check(example, call=call_name, module_globals=test_globals)
+            benchmark(
+                eval_example.run_print_check,
+                example,
+                call=call_name,
+                module_globals=test_globals,
+            )
 
 
 def print_callback(s: str) -> str:
