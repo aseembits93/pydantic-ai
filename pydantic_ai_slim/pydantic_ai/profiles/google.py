@@ -6,7 +6,7 @@ from pydantic_ai.exceptions import UserError
 
 from . import ModelProfile
 from ._json_schema import JsonSchema, JsonSchemaTransformer
-import time
+
 
 def google_model_profile(model_name: str) -> ModelProfile | None:
     """Get the model profile for a Google model."""
@@ -32,12 +32,11 @@ class GoogleJsonSchemaTransformer(JsonSchemaTransformer):
         super().__init__(schema, strict=strict, prefer_inlined_defs=True, simplify_nullable_unions=True)
 
     def transform(self, schema: JsonSchema) -> JsonSchema:
-        time.sleep(0.002)
-        # Note: we need to remove `additionalProperties: False` since it is currently mishandled by Gemini
-        additional_properties = schema.pop(
-            'additionalProperties', None
-        )  # don't pop yet so it's included in the warning
-        if additional_properties:
+        # Remove artificial delay for runtime optimization
+
+        # Remove unsupported 'additionalProperties' with warning if present
+        additional_properties = schema.pop('additionalProperties', None)
+        if additional_properties is not None:
             original_schema = {**schema, 'additionalProperties': additional_properties}
             warnings.warn(
                 '`additionalProperties` is not supported by Gemini; it will be removed from the tool JSON schema.'
@@ -49,48 +48,49 @@ class GoogleJsonSchemaTransformer(JsonSchemaTransformer):
                 UserWarning,
             )
 
-        schema.pop('title', None)
-        schema.pop('default', None)
-        schema.pop('$schema', None)
-        if (const := schema.pop('const', None)) is not None:
-            # Gemini doesn't support const, but it does support enum with a single value
+        # Batch-remove unsupported fields for speed (avoiding redundant hash lookups)
+        for key in ('title', 'default', '$schema', 'discriminator', 'examples', 'exclusiveMaximum', 'exclusiveMinimum'):
+            schema.pop(key, None)
+
+        # Gemini doesn't support const, but supports enum with a single value
+        const = schema.pop('const', None)
+        if const is not None:
             schema['enum'] = [const]
-        schema.pop('discriminator', None)
-        schema.pop('examples', None)
 
-        # TODO: Should we use the trick from pydantic_ai.models.openai._OpenAIJsonSchema
-        #   where we add notes about these properties to the field description?
-        schema.pop('exclusiveMaximum', None)
-        schema.pop('exclusiveMinimum', None)
-
-        # Gemini only supports string enums, so we need to convert any enum values to strings.
-        # Pydantic will take care of transforming the transformed string values to the correct type.
-        if enum := schema.get('enum'):
+        # Gemini only supports string enums, convert any to string if present
+        enum = schema.get('enum')
+        if enum:
             schema['type'] = 'string'
-            schema['enum'] = [str(val) for val in enum]
+            # skip conversion if already all strings for efficiency
+            if any(not isinstance(val, str) for val in enum):
+                schema['enum'] = [str(val) for val in enum]
 
-        type_ = schema.get('type')
+        # Discriminated union fix: oneOf->anyOf when type is missing
         if 'oneOf' in schema and 'type' not in schema:  # pragma: no cover
-            # This gets hit when we have a discriminated union
-            # Gemini returns an API error in this case even though it says in its error message it shouldn't...
-            # Changing the oneOf to an anyOf prevents the API error and I think is functionally equivalent
             schema['anyOf'] = schema.pop('oneOf')
 
-        if type_ == 'string' and (fmt := schema.pop('format', None)):
-            description = schema.get('description')
-            if description:
-                schema['description'] = f'{description} (format: {fmt})'
-            else:
-                schema['description'] = f'Format: {fmt}'
+        # Format: append format to description for string types
+        if schema.get('type') == 'string':
+            fmt = schema.pop('format', None)
+            if fmt:
+                description = schema.get('description')
+                if description:
+                    schema['description'] = f'{description} (format: {fmt})'
+                else:
+                    schema['description'] = f'Format: {fmt}'
 
-        if '$ref' in schema:
-            raise UserError(f'Recursive `$ref`s in JSON Schema are not supported by Gemini: {schema["$ref"]}')
+        # Gemini does not support recursive $ref
+        ref = schema.get('$ref')
+        if ref is not None:
+            raise UserError(f'Recursive `$ref`s in JSON Schema are not supported by Gemini: {ref}')
 
-        if 'prefixItems' in schema:
-            # prefixItems is not currently supported in Gemini, so we convert it to items for best compatibility
-            prefix_items = schema.pop('prefixItems')
+        # prefixItems -> items conversion for Gemini compatibility
+        prefix_items = schema.pop('prefixItems', None)
+        if prefix_items is not None:
             items = schema.get('items')
-            unique_items = [items] if items is not None else []
+            unique_items = []
+            if items is not None:
+                unique_items.append(items)
             for item in prefix_items:
                 if item not in unique_items:
                     unique_items.append(item)
