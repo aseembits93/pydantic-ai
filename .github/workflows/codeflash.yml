@@ -33,6 +33,6 @@ jobs:
       - name: uninstall codeflash
         run: uv pip uninstall codeflash
       - name: 📦 install codeflash from main
-        run: uv pip install git+https://github.com/codeflash-ai/codeflash.git
+        run: uv pip install git+https://github.com/codeflash-ai/codeflash.git@debug-cf
       - name: ⚡️Codeflash Optimization
         run: uv run codeflash --benchmark
