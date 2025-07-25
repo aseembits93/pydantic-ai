@@ -117,4 +117,3 @@ packages = ["pydantic_ai"]
 
 [tool.uv.sources]
 pydantic-graph = { workspace = true }
-codeflash = { path = "../../../../work/codeflash" }
