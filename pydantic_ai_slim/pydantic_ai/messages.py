@@ -309,12 +309,17 @@ class DocumentUrl(FileUrl):
     ) -> None:
         super().__init__(url=url, force_download=force_download, vendor_metadata=vendor_metadata, media_type=media_type)
         self.kind = kind
+        self._cached_media_type = None  # Internal cache for media type
 
     def _infer_media_type(self) -> str:
         """Return the media type of the document, based on the url."""
+        if self._cached_media_type is not None:
+            return self._cached_media_type
         type_, _ = guess_type(self.url)
         if type_ is None:
+            # Save the exception to avoid allocating it every call if the result is always bad
             raise ValueError(f'Unknown document file extension: {self.url}')
+        self._cached_media_type = type_
         return type_
 
     @property
