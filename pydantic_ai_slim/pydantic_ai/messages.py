@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from functools import lru_cache
 from mimetypes import guess_type
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Union, cast, overload
 
@@ -312,7 +313,7 @@ class DocumentUrl(FileUrl):
 
     def _infer_media_type(self) -> str:
         """Return the media type of the document, based on the url."""
-        type_, _ = guess_type(self.url)
+        type_, _ = self._guess_type_cached(self.url)
         if type_ is None:
             raise ValueError(f'Unknown document file extension: {self.url}')
         return type_
@@ -328,6 +329,11 @@ class DocumentUrl(FileUrl):
             return _document_format_lookup[media_type]
         except KeyError as e:
             raise ValueError(f'Unknown document media type: {media_type}') from e
+
+    @staticmethod
+    @lru_cache(maxsize=1024)
+    def _guess_type_cached(url: str):
+        return guess_type(url)
 
 
 @dataclass(repr=False)
