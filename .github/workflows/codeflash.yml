@@ -35,4 +35,4 @@ jobs:
       - name: 📦 install codeflash from main
         run: uv pip install git+https://github.com/codeflash-ai/codeflash.git@benchmark-fixture-fix
       - name: ⚡️Codeflash Optimization
-        run: uv run codeflash --benchmark --verbose
+        run: uv run codeflash --benchmark
