@@ -83,7 +83,11 @@ members = [
 
 [dependency-groups]
 # dev dependencies are defined in `pydantic-ai-slim/pyproject.toml` to allow for minimal testing
-lint = ["mypy>=1.11.2", "pyright>=1.1.390", "ruff>=0.6.9"]
+lint = [
+    "mypy>=1.11.2",
+    "pyright>=1.1.390",
+    "ruff>=0.6.9",
+]
 docs = [
     "pydantic-ai[a2a]",
     "black>=24.10.0",
@@ -287,3 +291,11 @@ check-hidden = true
 # Ignore "formatting" like **L**anguage
 ignore-regex = '\*\*[A-Z]\*\*[a-z]+\b'
 ignore-words-list = 'asend,aci'
+
+[tool.codeflash]
+module-root = "pydantic_ai_slim/pydantic_ai"
+tests-root = "tests"
+test-framework = "pytest"
+ignore-paths = []
+formatter-cmds = ["ruff check --exit-zero --fix $file", "ruff format $file"]
+benchmarks-root = "tests"

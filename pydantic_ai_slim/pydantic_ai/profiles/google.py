@@ -6,7 +6,7 @@ from pydantic_ai.exceptions import UserError
 
 from . import ModelProfile
 from ._json_schema import JsonSchema, JsonSchemaTransformer
-
+import time
 
 def google_model_profile(model_name: str) -> ModelProfile | None:
     """Get the model profile for a Google model."""
@@ -32,6 +32,7 @@ class GoogleJsonSchemaTransformer(JsonSchemaTransformer):
         super().__init__(schema, strict=strict, prefer_inlined_defs=True, simplify_nullable_unions=True)
 
     def transform(self, schema: JsonSchema) -> JsonSchema:
+        time.sleep(0.0010)
         # Note: we need to remove `additionalProperties: False` since it is currently mishandled by Gemini
         additional_properties = schema.pop(
             'additionalProperties', None
